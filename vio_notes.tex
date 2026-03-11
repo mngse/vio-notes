@@ -7,6 +7,8 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,calc,fit}
 \usepackage[hidelinks]{hyperref}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
 
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\SO}{\mathrm{SO}(3)}
@@ -17,8 +19,8 @@
 \newcommand{\T}{^{\top}}
 
 \title{Visual--Inertial Odometry (VIO) Notes}
-\author{}
-\date{}
+\author{Sebastiano Mengozzi}
+\date{March 2026}
 
 \begin{document}
 \maketitle
@@ -36,24 +38,43 @@ The estimate is
 \begin{equation}
 \hat{\mathbf{X}} = \arg\min_{\mathbf{X}} J(\mathbf{X}).
 \end{equation}
+where the optimization variables are collected in
+\begin{equation}
+\mathbf{X} = \left\{\mathbf{x}_i,\, \mathbf{P}_\ell^W\right\},
+\end{equation}
+and the index sets are:
+\begin{itemize}
+    \item \(\mathcal{I}\): set of consecutive keyframe pairs \((i,j)\) with an active IMU factor,
+    \item \(\mathcal{C}\): set of (keyframe, landmark) pairs \((i,\ell)\) with a valid reprojection observation,
+    \item \(\mathbf{x}_i = (\mathbf{R}_i,\mathbf{p}_i,\mathbf{v}_i,\mathbf{b}_{g,i},\mathbf{b}_{a,i})\): state at keyframe \(i\),
+    \item \(\mathbf{P}_\ell^W \in \R^3\): position of landmark \(\ell\) in the world frame,
+    \item \(\mathbf{r}_{\mathrm{prior}}\): residual encoding information from marginalized states,
+    \item \(\mathbf{r}^{\mathrm{imu}}_{ij} \in \R^{15}\): IMU residual between keyframes \(i\) and \(j\),
+    \item \(\mathbf{r}^{\mathrm{cam}}_{i\ell} \in \R^{2}\): camera reprojection residual for landmark \(\ell\) at keyframe \(i\),
+    \item \(\Sigma_{\mathrm{prior}}, \Sigma_{ij}, \Sigma_{i\ell}\): covariance matrices of the corresponding noise terms.
+\end{itemize}
 
-\paragraph{Comment.}
-The three terms correspond to: prior information, IMU constraints, and camera reprojection constraints.
+The three terms correspond to: prior information, IMU constraints, and camera reprojection constraints. 
+For simplicity, we omit the prior term in the following. 
+\\
+Intuitively, the prior encodes information from states that 
+have been removed from the active window: when the oldest state is marginalized out, its contribution is compressed into 
+a prior factor that is carried forward, preserving the information without keeping the full state history. Marginalization 
+is thus the process of removing the oldest states while mathematically preserving their information as a prior.
 
 \section{State and conventions}
 
-At keyframe or image time \(t_i\), the state is
+At keyframe (or image time) \(t_i\), the state is
 \begin{equation}
 \mathbf{x}_i = (\mathbf{R}_i,\mathbf{p}_i,\mathbf{v}_i,\mathbf{b}_{g,i},\mathbf{b}_{a,i}),
 \end{equation}
 with
-\(\mathbf{R}_i\in \SO(3)\), \(\mathbf{p}_i,\mathbf{v}_i\in\R^3\), and gyro/accelerometer biases
+\(\mathbf{R}_i\in \SO\), \(\mathbf{p}_i,\mathbf{v}_i\in\R^3\), and gyro/accelerometer biases
 \(\mathbf{b}_{g,i},\mathbf{b}_{a,i}\in\R^3\).
-
+\\
 We use the convention that \(\mathbf{R}_i\) maps vectors from the body frame \(B_i\) to the world frame \(W\).
 Therefore, \(\mathbf{R}_i\T\) maps vectors from world to body coordinates.
-
-\paragraph{Comment.}
+\\
 With this convention, all frame transformations in the camera and IMU equations stay consistent.
 
 \section{Camera model and residual}
@@ -64,13 +85,13 @@ Let the camera extrinsics be \((\mathbf{R}_{CB},\mathbf{p}_{BC}^B)\), where:
   \item \(\mathbf{R}_{CB}\) rotates body-frame vectors into camera-frame vectors,
   \item \(\mathbf{p}_{BC}^B\) is the camera position relative to the body origin, expressed in the body frame.
 \end{itemize}
-
+\
 Then the landmark coordinates in the body and camera frames are
 \begin{align}
 \mathbf{P}_\ell^{B_i} &= \mathbf{R}_i\T (\mathbf{P}_\ell^W - \mathbf{p}_i), \\
 \mathbf{P}_\ell^{C_i} &= \mathbf{R}_{CB}(\mathbf{P}_\ell^{B_i} - \mathbf{p}_{BC}^B).
 \end{align}
-
+\
 Using the pinhole model with intrinsic matrix
 \begin{equation}
 \mathbf{K} =
@@ -92,9 +113,8 @@ If \(\mathbf{u}_{i\ell}\) is the observed pixel, the camera residual is
 \begin{equation}
 \mathbf{r}^{\mathrm{cam}}_{i\ell} = \mathbf{u}_{i\ell} - \hat{\mathbf{u}}_{i\ell}.
 \end{equation}
-
-\paragraph{Comment.}
-The camera factor penalizes the mismatch between the measured image point and the point predicted by the current state and landmark estimate.
+\\
+The camera factor penalizes the mismatch between the measured image point and the point predicted by the current state \(\mathbf{x}_i\) and landmark estimate \(\mathbf{P}_\ell^W\).
 
 \section{IMU measurement model}
 
@@ -114,8 +134,7 @@ The biases are usually modeled as random walks:
 \dot{\mathbf{b}}_g(t) &= \mathbf{n}_{wg}(t), \\
 \dot{\mathbf{b}}_a(t) &= \mathbf{n}_{wa}(t).
 \end{align}
-
-\paragraph{Comment.}
+\\
 The accelerometer does not directly measure world acceleration; it measures specific force in the body frame.
 
 \section{Continuous-time kinematics}
@@ -126,27 +145,22 @@ The motion model is
 \dot{\mathbf{v}}(t) &= \mathbf{g} + \mathbf{R}(t)\mathbf{f}(t), \label{eq:vdot}\\
 \dot{\mathbf{p}}(t) &= \mathbf{v}(t). \label{eq:pdot}
 \end{align}
-
-\paragraph{Comment.}
+\\
+Here \(\crossmat{\boldsymbol{\omega}(t)}\) denotes the skew-symmetric matrix associated with the angular velocity vector \(\boldsymbol{\omega}(t)\), i.e., the matrix representation of the cross product with \(\boldsymbol{\omega}(t)\).
+\\
 Equation \eqref{eq:Rdot} describes orientation dynamics, \eqref{eq:vdot} gives the velocity derivative in world frame, and \eqref{eq:pdot} is standard position kinematics.
 
-\section{Two distinct roles of the IMU}
+\section{Role of the IMU}
 
 It is crucial to distinguish two different uses of the IMU data.
 
 \subsection{Role 1: propagating the newest state}
 When a new keyframe \(j\) arrives, raw IMU samples between \(t_i\) and \(t_j\) are used to propagate an initial guess for the new state from \(\mathbf{x}_i\) to \(\mathbf{x}_j\).
-This is only an initialization step for the optimizer.
-
-\paragraph{Comment.}
-This is where one informally says that the IMU ``predicts the next state.''
 
 \subsection{Role 2: building IMU factors in the optimization window}
-For every consecutive pair of states \((i,j)\) currently in the active optimization window, the raw IMU samples between \(t_i\) and \(t_j\) are preintegrated into one IMU factor.
+For every consecutive pair of states \((i,j)\) currently in the active optimization window, the raw IMU samples between \(t_i\) and \(t_j\) are preintegrated into one IMU factor (and stored).
 Therefore preintegration is not only used for the newest interval: it exists for all active IMU intervals in the window.
-
-\paragraph{Comment.}
-This is the main clarification: the optimization uses stored IMU factors on all intervals in the current window, not only on the newest state.
+The optimization uses stored IMU factors on all intervals in the current window, not only on the newest state.
 
 \section{Preintegration from raw IMU samples}
 
@@ -157,7 +171,7 @@ For each IMU sample \(k\) in that interval, define the bias-corrected quantities
 \qquad
 \tilde{\mathbf{f}}_k = \mathbf{a}_{m,k} - \bar{\mathbf{b}}_{a,i}.
 \end{equation}
-
+\\
 Using a simple discrete propagation, the preintegrated quantities evolve as
 \begin{align}
 \widehat{\Delta \mathbf{R}}_{k+1}
@@ -176,8 +190,7 @@ with initialization
 \qquad
 \widehat{\Delta \mathbf{p}}_{ii}=\mathbf{0}.
 \end{equation}
-
-\paragraph{Comment.}
+\\
 These equations use the raw IMU data and produce the measurement-side quantities \(\widehat{\Delta \mathbf{R}}_{ij},\widehat{\Delta \mathbf{v}}_{ij},\widehat{\Delta \mathbf{p}}_{ij}\) associated with the interval \((i,j)\).
 
 \section{Relative motion implied by the states}
@@ -190,8 +203,7 @@ From these states alone, we can compute the relative motion they imply:
 \Delta \mathbf{v}^{\mathrm{state}}_{ij} &= \mathbf{R}_i\T\left(\mathbf{v}_j - \mathbf{v}_i - \mathbf{g}\,\Delta t_{ij}\right), \\
 \Delta \mathbf{p}^{\mathrm{state}}_{ij} &= \mathbf{R}_i\T\left(\mathbf{p}_j - \mathbf{p}_i - \mathbf{v}_i\,\Delta t_{ij} - \tfrac{1}{2}\mathbf{g}\,\Delta t_{ij}^2\right).
 \end{align}
-
-\paragraph{Comment.}
+\\
 These expressions do \emph{not} use raw IMU samples. They are computed only from the current guessed states in the optimizer. They describe the motion encoded by the pair \((\mathbf{x}_i,\mathbf{x}_j)\).
 
 \section{IMU residual}
@@ -225,8 +237,7 @@ Stacking them gives
 \mathbf{r}_{b_a,ij}
 \end{bmatrix}.
 \end{equation}
-
-\paragraph{Comment.}
+\\
 The IMU residual is therefore the mismatch between two descriptions of the same motion over \((i,j)\): one from measurements, one from the current optimization states.
 
 \section{Time interpretation and sliding-window implementation}
@@ -238,10 +249,9 @@ In online VIO, the active variable set is usually a sliding window
 \end{equation}
 where \(\mathbf{x}_k\) is the latest state at the current time, and the other states are recent past states.
 So \(\mathbf{X}\) is usually a recent piece of the trajectory, not the entire trajectory and not true future states.
+\\
 
-\paragraph{Comment.}
 The optimizer refines all states currently in the window, including past ones, because new camera and IMU information can improve them.
-
 For example, if
 \begin{equation}
 \mathbf{X}=\{\mathbf{x}_2,\mathbf{x}_3,\mathbf{x}_4,\mathbf{x}_5\},
@@ -250,7 +260,7 @@ then the active IMU factors are typically
 \begin{equation}
 \hat z^{\mathrm{imu}}_{23},\qquad \hat z^{\mathrm{imu}}_{34},\qquad \hat z^{\mathrm{imu}}_{45}.
 \end{equation}
-The newest state \(\mathbf{x}_5\) is initialized by IMU propagation from \(\mathbf{x}_4\), but the optimization uses all active IMU factors in the current window.
+The newest state \(\mathbf{x}_5\) is initialized by IMU propagation from \(\mathbf{x}_4\), but the optimization uses all active IMU factors in the current window (see Fig.~\ref{fig:active_window}).
 
 \begin{figure}[h!]
 \centering
@@ -278,42 +288,55 @@ The newest state \(\mathbf{x}_5\) is initialized by IMU propagation from \(\math
   \node[draw,dashed,fit=(x2)(x3)(x4)(x5)(z23)(z34)(z45),inner sep=8pt,label=below:{active sliding window}] {};
 \end{tikzpicture}
 \caption{The active window contains recent states and all corresponding IMU factors. The newest state is initialized using raw IMU, while the optimizer uses IMU factors for every active interval.}
+\label{fig:active_window}
 \end{figure}
 
+\newpage
+
 \section{Pseudo-algorithm}
+The newest state is initialized from IMU propagation, but the optimizer refines the full active window using all stored visual and inertial factors. 
 
-\begin{verbatim}
-At real time t_k:
+\begin{algorithm}[h]
+\caption{Keyframe-Based Visual-Inertial Sliding Window Optimization}
+\label{alg:vio_sliding_window}
+\begin{algorithmic}[1]
+\State \textbf{At real time} $t_k$:
+\State \textbf{Input:} 
+    \Statex \hspace{\algorithmicindent} $\mathcal{X}_{old} = \{x_{k-m}, \dots, x_{k-1}\}$ \Comment{Current sliding window}
+    \Statex \hspace{\algorithmicindent} $\mathcal{S}_{k-1 \to k} = \{(\omega_m, a_m)_t\}_{t_{k-1}}^{t_k}$ \Comment{Raw IMU samples}
+    \Statex \hspace{\algorithmicindent} $\mathcal{U}_k = \{\mathbf{u}_{i\ell}\}$ and $\mathcal{P} = \{\mathbf{P}_\ell\}$ \Comment{2D detections and 3D landmarks}
+    
+\State \textbf{Upon arrival of new keyframe} $x_k$:
 
-Window before new frame:
-  X_old = {x_{k-m}, ..., x_{k-1}}
+\Statex \textbf{1. State Initialization}
+\State Propagate $x_{k-1}$ using $\mathcal{S}_{k-1 \to k}$ to obtain initial guess $\check{x}_k$
 
-When new keyframe x_k arrives:
+\Statex \textbf{2. Window Management}
+\State $\mathcal{X} \gets \{x_{k-m+1}, \dots, x_{k-1}, x_k\}$ \Comment{Slide window forward}
 
-1. Initialize x_k
-   - propagate x_{k-1} using raw IMU from t_{k-1} to t_k
-   - this gives an initial guess for x_k
+\Statex \textbf{3. Visual Residual Computation}
+\For{each observation $\mathbf{u}_{i\ell} \in \mathcal{U}_k$}
+    \State $\mathbf{r}^{cam}_{i\ell} = \mathbf{u}_{i\ell} - \pi(x_i, \mathbf{P}_\ell)$ \Comment{Difference from projection model}
+\EndFor
 
-2. Form the new window
-   X = {x_{k-m+1}, ..., x_{k-1}, x_k}
+\Statex \textbf{4. Inertial Preintegration and Residuals}
+\For{each consecutive pair $(i, j) \in \mathcal{X}$}
+    \State Compute preintegrated $\Delta \hat{R}_{ij}, \Delta \hat{v}_{ij}, \Delta \hat{p}_{ij}$ from $\mathcal{S}_{i \to j}$
+    \State Compute IMU residual $\mathbf{r}^{imu}_{ij}$ \Comment{Compare state-implied motion with IMU}
+    \State Compute covariance $\Sigma_{ij}$ and bias Jacobians $\mathcal{J}_{ij}$
+\EndFor
 
-3. Build / store IMU factors
-   For each consecutive interval (i,j) in the active window:
-     - use raw IMU samples between t_i and t_j
-     - preintegrate them to get DeltaR_hat_ij, DeltaV_hat_ij, DeltaP_hat_ij
-     - store covariance and bias Jacobians
+\Statex \textbf{5. Joint Optimization}
+\State $J(\mathcal{X}) = \sum \|\mathbf{r}^{cam}_{i\ell}\|^2_{\Sigma_{cam}} + \sum \|\mathbf{r}^{imu}_{ij}\|^2_{\Sigma_{ij}}$
+\State $\hat{\mathcal{X}} \gets \arg\min_{\mathcal{X}} J(\mathcal{X})$ \Comment{Solve via least-squares}
 
-4. Optimize all variables in X together
-   - camera factors constrain states and landmarks
-   - IMU factors constrain consecutive states
-   - all states in the active window can be refined
+\Statex \textbf{6. Output}
+\State \Return Latest optimized state $\hat{x}_k$
+\end{algorithmic}
+\end{algorithm}
 
-5. Output the latest estimate x_k
-   - keep the optimized window for the next iteration
-\end{verbatim}
 
-\paragraph{Comment.}
-The newest state is initialized from IMU propagation, but the optimizer refines the full active window using all stored visual and inertial factors.
+\newpage
 
 \section{Compact block scheme}
 
@@ -360,9 +383,8 @@ The newest state is initialized from IMU propagation, but the optimizer refines 
   % Optimization chain
   \draw[->] (cost) -- (opt);
   \draw[->] (opt) -- (out);
-
   \draw[->] (out.east) -| (imustate.south);
-  
+
 \end{tikzpicture}
 \caption{Visual and inertial residuals both contribute to the same optimization problem. The IMU branch explicitly compares preintegrated motion from raw measurements with motion implied by the current states.}
 \end{figure}
