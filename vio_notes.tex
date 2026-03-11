@@ -320,23 +320,23 @@ The newest state is initialized from IMU propagation, but the optimizer refines 
 \begin{figure}[h!]
 \centering
 \begin{tikzpicture}[>=Latex]
-  \tikzstyle{block}=[draw,rounded corners,minimum width=32mm,minimum height=10mm,align=center]
+  \tikzstyle{block}=[draw,rounded corners,minimum width=42mm,minimum height=10mm,align=center]
 
-  % Camera row
+  % Camera column
   \node[block] (cammeas) at (0,0) {camera measurements\\$\mathbf{u}_{i\ell}$};
-  \node[block] (cammodel) at (4.5,0) {projection model\\from $\mathbf{x}_i,\mathbf{P}_\ell$};
-  \node[block] (camres) at (9,0) {camera residual\\$\mathbf{r}^{cam}_{i\ell}$};
+  \node[block] (cammodel) at (0,-2) {projection model\\from $\mathbf{x}_i,\mathbf{P}_\ell$};
+  \node[block] (camres) at (0,-4) {camera residual\\$\mathbf{r}^{cam}_{i\ell}$};
 
-  % IMU row
-  \node[block] (imumeas) at (0,-2.2) {raw IMU samples\\$(\omega_m,a_m)$};
-  \node[block] (preint) at (4.5,-2.2) {preintegration\\$\widehat{\Delta R},\widehat{\Delta v},\widehat{\Delta p}$};
-  \node[block] (imustate) at (9,-2.2) {state-implied motion\\from $\mathbf{x}_i,\mathbf{x}_j$};
-  \node[block] (imures) at (13.5,-2.2) {IMU residual\\$\mathbf{r}^{imu}_{ij}$};
+  % IMU column
+  \node[block] (imumeas) at (5,0) {raw IMU samples\\$(\omega_m,a_m)$};
+  \node[block] (preint) at (5,-2) {preintegration\\$\widehat{\Delta R},\widehat{\Delta v},\widehat{\Delta p}$};
+  \node[block] (imustate) at (10,-4) {state-implied motion\\from $\mathbf{x}_i,\mathbf{x}_j$};
+  \node[block] (imures) at (5,-4) {IMU residual\\$\mathbf{r}^{imu}_{ij}$};
 
-  % Bottom row
-  \node[block] (cost) at (9,-4.6) {weighted least-squares cost\\$J(\mathbf{X})$};
-  \node[block] (opt) at (13.5,-4.6) {optimizer};
-  \node[block] (out) at (17.5,-4.6) {updated states\\$\hat{\mathbf{X}}$};
+  % Bottom chain
+  \node[block] (cost) at (2.5,-7) {weighted least-squares cost\\$J(\mathbf{X})$};
+  \node[block] (opt) at (2.5,-9) {optimizer};
+  \node[block] (out) at (2.5,-11) {updated states\\$\hat{\mathbf{X}}$};
 
   % Camera arrows
   \draw[->] (cammeas) -- (cammodel);
@@ -345,15 +345,24 @@ The newest state is initialized from IMU propagation, but the optimizer refines 
   % IMU arrows
   \draw[->] (imumeas) -- (preint);
   \draw[->] (preint) -- (imures);
-  \draw[->] (imustate) -- (imures);
+  \draw[->] (imustate.west) -- (imures.east);
 
-  % Toward cost
-  \draw[->] (camres) |- (cost.north);
-  \draw[->] (imures) -- (cost);
+% 1. Create a merge point at X=2.5, aligned vertically with the target block's top
+\coordinate (merge) at (2.5, -5.5);
 
-  % Optimization output
+% 2. Route the arrows to this merge point
+\draw (camres.south) |- (merge);
+\draw (imures.south) |- (merge);
+
+% 3. Final arrow from the merge point into the cost block
+\draw[->] (merge) -- (cost.north);
+
+  % Optimization chain
   \draw[->] (cost) -- (opt);
   \draw[->] (opt) -- (out);
+
+  \draw[->] (out.east) -| (imustate.south);
+  
 \end{tikzpicture}
 \caption{Visual and inertial residuals both contribute to the same optimization problem. The IMU branch explicitly compares preintegrated motion from raw measurements with motion implied by the current states.}
 \end{figure}
