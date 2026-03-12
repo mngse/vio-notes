@@ -294,44 +294,41 @@ The newest state \(\mathbf{x}_5\) is initialized by IMU propagation from \(\math
 \newpage
 
 \section{Pseudo-algorithm}
-The newest state is initialized from IMU propagation, but the optimizer refines the full active window using all stored visual and inertial factors. 
+The newest state is initialized from IMU propagation, but the optimizer refines the full active window using all stored visual and inertial factors.
+For simplicity, this exposition omits the explicit marginalization process and prior term generation, though both are essential components of a complete implementation.
 
 \begin{algorithm}[h]
 \caption{Keyframe-Based Visual-Inertial Sliding Window Optimization}
 \label{alg:vio_sliding_window}
 \begin{algorithmic}[1]
-\State \textbf{At real time} $t_k$:
-\State \textbf{Input:} 
+\State \textbf{Inpunt:} 
     \Statex \hspace{\algorithmicindent} $\mathcal{X}_{old} = \{x_{k-m}, \dots, x_{k-1}\}$ \Comment{Current sliding window}
     \Statex \hspace{\algorithmicindent} $\mathcal{S}_{k-1 \to k} = \{(\omega_m, a_m)_t\}_{t_{k-1}}^{t_k}$ \Comment{Raw IMU samples}
     \Statex \hspace{\algorithmicindent} $\mathcal{U}_k = \{\mathbf{u}_{i\ell}\}$ and $\mathcal{P} = \{\mathbf{P}_\ell\}$ \Comment{2D detections and 3D landmarks}
     
-\State \textbf{Upon arrival of new keyframe} $x_k$:
+\State \textbf{Optimization step} $k$:
 
 \Statex \textbf{1. State Initialization}
-\State Propagate $x_{k-1}$ using $\mathcal{S}_{k-1 \to k}$ to obtain initial guess $\check{x}_k$
+\State Propagate $x_{k-1}$ using $\mathcal{S}_{k-1 \to k}$ to obtain initial guess $x_k$
 
 \Statex \textbf{2. Window Management}
 \State $\mathcal{X} \gets \{x_{k-m+1}, \dots, x_{k-1}, x_k\}$ \Comment{Slide window forward}
 
 \Statex \textbf{3. Visual Residual Computation}
 \For{each observation $\mathbf{u}_{i\ell} \in \mathcal{U}_k$}
-    \State $\mathbf{r}^{cam}_{i\ell} = \mathbf{u}_{i\ell} - \pi(x_i, \mathbf{P}_\ell)$ \Comment{Difference from projection model}
+    \State Compute camera residual $\mathbf{r}^{cam}_{i\ell} = \mathbf{u}_{i\ell} - \pi(x_i, \mathbf{P}_\ell)$ \Comment{Difference from projection model}
 \EndFor
 
 \Statex \textbf{4. Inertial Preintegration and Residuals}
 \For{each consecutive pair $(i, j) \in \mathcal{X}$}
-    \State Compute preintegrated $\Delta \hat{R}_{ij}, \Delta \hat{v}_{ij}, \Delta \hat{p}_{ij}$ from $\mathcal{S}_{i \to j}$
     \State Compute IMU residual $\mathbf{r}^{imu}_{ij}$ \Comment{Compare state-implied motion with IMU}
     \State Compute covariance $\Sigma_{ij}$ and bias Jacobians $\mathcal{J}_{ij}$
 \EndFor
 
 \Statex \textbf{5. Joint Optimization}
 \State $J(\mathcal{X}) = \sum \|\mathbf{r}^{cam}_{i\ell}\|^2_{\Sigma_{cam}} + \sum \|\mathbf{r}^{imu}_{ij}\|^2_{\Sigma_{ij}}$
-\State $\hat{\mathcal{X}} \gets \arg\min_{\mathcal{X}} J(\mathcal{X})$ \Comment{Solve via least-squares}
+\State $\mathcal{X} \gets \arg\min_{\mathcal{X}} J(\mathcal{X})$ \Comment{Solve via least-squares}
 
-\Statex \textbf{6. Output}
-\State \Return Latest optimized state $\hat{x}_k$
 \end{algorithmic}
 \end{algorithm}
 
@@ -359,7 +356,7 @@ The newest state is initialized from IMU propagation, but the optimizer refines 
   % Bottom chain
   \node[block] (cost) at (2.5,-7) {weighted least-squares cost\\$J(\mathbf{X})$};
   \node[block] (opt) at (2.5,-9) {optimizer};
-  \node[block] (out) at (2.5,-11) {updated states\\$\hat{\mathbf{X}}$};
+  \node[block] (out) at (2.5,-11) {updated states\\$\mathbf{X}$};
 
   % Camera arrows
   \draw[->] (cammeas) -- (cammodel);

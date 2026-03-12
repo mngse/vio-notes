@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.3.11)  11 MAR 2026 15:58
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.3.11)  12 MAR 2026 15:04
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -815,13 +815,13 @@ s been already used, duplicate ignored
 l.294 \newpage
               ]
 Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on in
-put line 300.
+put line 301.
  [6] [7
 pdfTeX warning (ext4): destination with the same identifier (name{figure.2}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.392 \end{document}
+l.389 \end{document}
                     ] (./vio_notes.aux)
  ***********
 LaTeX2e <2025-11-01>
@@ -860,7 +860,7 @@ texlive/2026basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/loc
 al/texlive/2026basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr
 /local/texlive/2026basic/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.
 pfb>
-Output written on vio_notes.pdf (7 pages, 237818 bytes).
+Output written on vio_notes.pdf (7 pages, 236660 bytes).
 PDF statistics:
  253 PDF objects out of 1000 (max. 8388607)
  202 compressed objects within 3 object streams
